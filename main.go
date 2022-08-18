@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -72,13 +71,8 @@ func (r userRepo) list(ctx context.Context) ([]user, error) {
 }
 
 func createUser(ur userRepo) usecase.Interactor {
-	u := usecase.NewIOI(new(user), nil, func(ctx context.Context, input, output interface{}) error {
-		in, ok := input.(*user)
-		if !ok {
-			return fmt.Errorf("failed to assert type: %T", input)
-		}
-
-		return ur.create(ctx, *in)
+	u := usecase.NewInteractor[user, struct{}](func(ctx context.Context, input user, output *struct{}) error {
+		return ur.create(ctx, input)
 	})
 	// Describe use case interactor.
 	u.SetTitle("Create User")
@@ -88,13 +82,8 @@ func createUser(ur userRepo) usecase.Interactor {
 }
 
 func listUsers(ur userRepo) usecase.Interactor {
-	u := usecase.NewIOI(nil, new([]user), func(ctx context.Context, input, output interface{}) error {
-		var (
-			out = output.(*[]user)
-			err error
-		)
-
-		*out, err = ur.list(ctx)
+	u := usecase.NewInteractor[struct{}, []user](func(ctx context.Context, input struct{}, output *[]user) (err error) {
+		*output, err = ur.list(ctx)
 
 		return err
 	})
@@ -130,9 +119,9 @@ func main() {
 	s.Docs("/docs", swgui.New)
 
 	// Start server.
-	log.Println("http://localhost:8011/docs")
+	log.Println("SwaggerUI docs at http://localhost:8011/docs")
 
-	if err := http.ListenAndServe(":8011", s); err != nil {
+	if err := http.ListenAndServe("localhost:8011", s); err != nil {
 		log.Fatal(err)
 	}
 }
